@@ -13,11 +13,10 @@ struct ProductStruct
 	int product_id = 0;
 	std::string name = "none";
 	std::string slot = "none";
-	int paint_id = 0;
 	std::string paint = "none";
-	std::string certification = "none";
 	std::string quality = "unknown";
 	std::string crate = "none";
+	std::string special_edition = "none";
 	std::string tradeable = "unknown";
 	int amount = 1;
 };
@@ -38,7 +37,7 @@ const std::vector<std::string> QualityNames =
 };
 
 const std::vector<std::string> PaintNames = {
-	"None",
+	"none",
 	"Crimson",
 	"Lime",
 	"Black",
@@ -70,7 +69,9 @@ class InventoryExporter: public BakkesMod::Plugin::BakkesModPlugin/*, public Bak
 
 	void InventoryExport();
 
-	ProductStruct GetProductStruct(OnlineProductWrapper& product);
+	ProductStruct GetProductStruct(OnlineProductWrapper& product, bool& success);
+	bool IsSameItem(ProductStruct& product1, ProductStruct& product2);
+	void RemoveDuplicates(std::vector<ProductStruct>& Products);
 
 	void ExportToCSV(std::vector<ProductStruct>& Products);
 };
