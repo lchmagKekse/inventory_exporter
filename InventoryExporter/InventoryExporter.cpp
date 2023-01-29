@@ -1,48 +1,130 @@
 #include "pch.h"
 #include "InventoryExporter.h"
-
+#include <fstream>
 
 BAKKESMOD_PLUGIN(InventoryExporter, "InventoryExporter", plugin_version, PLUGINTYPE_FREEPLAY)
-
 std::shared_ptr<CVarManagerWrapper> _globalCvarManager;
+std::shared_ptr<GameWrapper> gw;
 
 void InventoryExporter::onLoad()
 {
 	_globalCvarManager = cvarManager;
-	//cvarManager->log("Plugin loaded!");
 
-	//cvarManager->registerNotifier("my_aweseome_notifier", [&](std::vector<std::string> args) {
-	//	cvarManager->log("Hello notifier!");
-	//}, "", 0);
+	cvarManager->registerNotifier("InventoryExport", [this](std::vector<std::string> args) {
+		InventoryExport();
+		}, "", PERMISSION_ALL);
 
-	//auto cvar = cvarManager->registerCvar("template_cvar", "hello-cvar", "just a example of a cvar");
-	//auto cvar2 = cvarManager->registerCvar("template_cvar2", "0", "just a example of a cvar with more settings", true, true, -10, true, 10 );
-
-	//cvar.addOnValueChanged([this](std::string cvarName, CVarWrapper newCvar) {
-	//	cvarManager->log("the cvar with name: " + cvarName + " changed");
-	//	cvarManager->log("the new value is:" + newCvar.getStringValue());
-	//});
-
-	//cvar2.addOnValueChanged(std::bind(&InventoryExporter::YourPluginMethod, this, _1, _2));
-
-	// enabled decleared in the header
-	//enabled = std::make_shared<bool>(false);
-	//cvarManager->registerCvar("TEMPLATE_Enabled", "0", "Enable the TEMPLATE plugin", true, true, 0, true, 1).bindTo(enabled);
-
-	//cvarManager->registerNotifier("NOTIFIER", [this](std::vector<std::string> params){FUNCTION();}, "DESCRIPTION", PERMISSION_ALL);
-	//cvarManager->registerCvar("CVAR", "DEFAULTVALUE", "DESCRIPTION", true, true, MINVAL, true, MAXVAL);//.bindTo(CVARVARIABLE);
-	//gameWrapper->HookEvent("FUNCTIONNAME", std::bind(&TEMPLATE::FUNCTION, this));
-	//gameWrapper->HookEventWithCallerPost<ActorWrapper>("FUNCTIONNAME", std::bind(&InventoryExporter::FUNCTION, this, _1, _2, _3));
-	//gameWrapper->RegisterDrawable(bind(&TEMPLATE::Render, this, std::placeholders::_1));
-
-
-	//gameWrapper->HookEvent("Function TAGame.Ball_TA.Explode", [this](std::string eventName) {
-	//	cvarManager->log("Your hook got called and the ball went POOF");
-	//});
-	// You could also use std::bind here
-	//gameWrapper->HookEvent("Function TAGame.Ball_TA.Explode", std::bind(&InventoryExporter::YourPluginMethod, this);
 }
 
-void InventoryExporter::onUnload()
-{
+void InventoryExporter::onUnload() { }
+
+void InventoryExporter::InventoryExport() {
+
+	auto itemsWrapper = gw->GetItemsWrapper();
+	if (itemsWrapper.IsNull()) { LOG("ItemsWrapper NULL"); return; }
+
+	auto inventory = itemsWrapper.GetOwnedProducts();
+
+	std::vector<ProductStruct> products;
+
+	for (auto item : inventory) {
+
+		if (item.IsNull()) continue;
+		if (item.GetProductID() <= 0) continue;
+		
+		products.push_back(GetProductStruct(item));
+	}
+
+	ExportToCSV(products);
+}
+
+ProductStruct InventoryExporter::GetProductStruct(OnlineProductWrapper& product) {
+
+	ProductStruct productStruct{};
+
+	if (product.IsNull()) return productStruct;
+
+	//ProductID
+	productStruct.product_id = product.GetProductID();
+
+	//Label
+	productStruct.name = product.GetLongLabel().ToString();
+
+	//Slot name
+	auto productWraper = product.GetProduct();
+	if (!productWraper.IsNull()) {
+		productStruct.slot = productWraper.GetSlot().GetOnlineLabel().ToString();
+	}
+
+	//Paint
+	auto attributes = product.GetAttributes();
+	if (!attributes.IsNull()) {
+
+		for (auto attribute : attributes) {
+
+			if (attribute.GetAttributeType() == "ProductAttribute_Painted_TA") {
+
+				auto PaintID = ProductAttribute_PaintedWrapper(attribute.memory_address).GetPaintID();
+
+				if (PaintID <= 0 && PaintID < PaintNames.size()) {
+					productStruct.paint = QualityNames[PaintID];
+				}
+			}
+		}
+	}
+	
+	//Certified
+	if (!attributes.IsNull()) {
+
+		for (auto attribute : attributes) {
+
+			if (attribute.GetAttributeType() == "ProductAttribute_Certified_TA") {
+
+				ProductAttribute_CertifiedWrapper certifiedWrapper(attribute.memory_address);
+
+				if (!certifiedWrapper.IsNull()) {
+
+					auto statDB = gw->GetItemsWrapper().GetCertifiedStatDB();
+
+					productStruct.certification = statDB.GetStatName(certifiedWrapper.GetStatId());
+				}
+			}
+		}
+	}
+
+	//Quality
+	auto quality = product.GetQuality();
+	if (quality <= 0 && quality < QualityNames.size()) {
+		productStruct.quality = QualityNames[quality];
+	}
+
+	//Crate
+	productStruct.crate = product.GetProductSeries();
+
+	//Tradable
+	productStruct.tradeable = product.GetIsUntradable() ? "false" : "true";
+
+	return productStruct;
+}
+
+void InventoryExporter::ExportToCSV(std::vector<ProductStruct>& Products) {
+
+	std::ofstream invExport;
+	invExport.open(gameWrapper->GetDataFolder() / "Inventory.csv");
+	invExport << "product id,name,slot,paint,certification,quality,crate,tradeable,amount" << std::endl;
+
+	for (auto& Product : Products) {
+
+		invExport << Product.product_id << ",";
+		invExport << Product.name << ",";
+		invExport << Product.slot << ",";
+		invExport << Product.paint << ",";
+		invExport << Product.certification << ",";
+		invExport << Product.quality << ",";
+		invExport << Product.crate << ",";
+		invExport << Product.tradeable << ",";
+		invExport << Product.amount << "\n";
+	}
+
+	invExport.close();
 }

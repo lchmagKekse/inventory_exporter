@@ -8,6 +8,57 @@
 constexpr auto plugin_version = stringify(VERSION_MAJOR) "." stringify(VERSION_MINOR) "." stringify(VERSION_PATCH) "." stringify(VERSION_BUILD);
 
 
+struct ProductStruct
+{
+	int product_id = 0;
+	std::string name = "none";
+	std::string slot = "none";
+	int paint_id = 0;
+	std::string paint = "none";
+	std::string certification = "none";
+	std::string quality = "unknown";
+	std::string crate = "none";
+	std::string tradeable = "unknown";
+	int amount = 1;
+};
+
+const std::vector<std::string> QualityNames = 
+{
+	"Common",
+	"Uncommon",
+	"Rare",
+	"VeryRare",
+	"Import",
+	"Exotic",
+	"BlackMarket",
+	"Premium",
+	"Limited",
+	"Legacy",
+	"MAX"
+};
+
+const std::vector<std::string> PaintNames = {
+	"None",
+	"Crimson",
+	"Lime",
+	"Black",
+	"Sky Blue",
+	"Cobalt",
+	"Burnt Sienna",
+	"Forest Green",
+	"Purple",
+	"Pink",
+	"Orange",
+	"Grey",
+	"Titanium White",
+	"Saffron",
+	"Gold",
+	"Rose Gold",
+	"White Gold",
+	"Onyx",
+	"Platinum"
+};
+
 class InventoryExporter: public BakkesMod::Plugin::BakkesModPlugin/*, public BakkesMod::Plugin::PluginSettingsWindow*//*, public BakkesMod::Plugin::PluginWindow*/
 {
 
@@ -17,29 +68,10 @@ class InventoryExporter: public BakkesMod::Plugin::BakkesModPlugin/*, public Bak
 	virtual void onLoad();
 	virtual void onUnload();
 
-	// Inherited via PluginSettingsWindow
-	/*
-	void RenderSettings() override;
-	std::string GetPluginName() override;
-	void SetImGuiContext(uintptr_t ctx) override;
-	*/
+	void InventoryExport();
 
-	// Inherited via PluginWindow
-	/*
+	ProductStruct GetProductStruct(OnlineProductWrapper& product);
 
-	bool isWindowOpen_ = false;
-	bool isMinimized_ = false;
-	std::string menuTitle_ = "InventoryExporter";
-
-	virtual void Render() override;
-	virtual std::string GetMenuName() override;
-	virtual std::string GetMenuTitle() override;
-	virtual void SetImGuiContext(uintptr_t ctx) override;
-	virtual bool ShouldBlockInput() override;
-	virtual bool IsActiveOverlay() override;
-	virtual void OnOpen() override;
-	virtual void OnClose() override;
-	
-	*/
+	void ExportToCSV(std::vector<ProductStruct>& Products);
 };
 
